@@ -1,0 +1,24 @@
+   {
+    "flaskSecret": " ",
+    "flaskHost": "",
+    "flaskPort": "",
+    "histDataUrlBase": "",
+    "conStringMisWarehouse":"",
+    "wbesApiUrl":"",
+    "wbesRevNoUrl" : "",
+    "WbesApiUser":"",
+    "WbesApiPass":"",
+    "wbesApikey": "",
+    "Maharashtra": {"wbesAcr": "", "raStateName": "", "reStateName": "", "solarGenScadaPoint": "", "windGenScadaPoint": ""},
+    "Gujarat": {"wbesAcr": "", "raStateName": "", "reStateName": "", "solarGenScadaPoint": "", "windGenScadaPoint": ""},
+    "MP": {"wbesAcr": "", "raStateName": "", "reStateName": "", "solarGenScadaPoint": "", "windGenScadaPoint": ""} ,
+    "Chattisgarh": {"wbesAcr": "", "raStateName": "", "reStateName": "", "solarGenScadaPoint": "", "windGenScadaPoint": ""},
+    "WR": {"reStateName": "", "solarGenScadaPoint": "", "windGenScadaPoint": ""},
+    "RaDbName":"",
+    "RaDbUsername": "",
+    "RaDbPwd": "",
+    "RaDbHost": "",
+    "RaDbPort": "",
+    "remcApiBaseUrl": ""
+
+   }
