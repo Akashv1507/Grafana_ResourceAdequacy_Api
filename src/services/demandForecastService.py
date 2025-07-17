@@ -16,9 +16,12 @@ class DemandForecastService:
         self.postgresqlConnection =None
 
     def connect(self):
-        """Establish a database connection."""
+        """Establish a mis database connection."""
+        if self.connection:
+            self.disconnect()
         try:
             self.connection = cx_Oracle.connect(self.connectionString)
+            # loggerr.info("Connected to Oracle MIS DB")
         except Exception as e:
             print(f"Database connection error: {str(e)}")
             self.connection = None
@@ -26,16 +29,21 @@ class DemandForecastService:
     def disconnect(self):
         """Close the database connection."""
         if self.connection:
+            # loggerr.info("Closing Oracle (MIS) DB connection")
             self.connection.close()
+            self.connection = None
     
     def connectPostgresqlDb(self):
         """Establish a postgresql database connection."""
+        if self.postgresqlConnection:
+            self.disconnectPostgresqlDb()
         try:
             self.postgresqlConnection = psycopg.connect(dbname=self.dbName,
                             user=self.user,
                             password=self.password,
                             host=self.host,
                             port=self.port, row_factory=dict_row)
+            # loggerr.info("Connected to PostgreSql RA DB")
         except Exception as e:
             print(f"Database connection error: {str(e)}")
             self.postgresqlConnection = None
@@ -43,8 +51,16 @@ class DemandForecastService:
     def disconnectPostgresqlDb(self):
         """Close the PostgreSQL database connection."""
         if self.postgresqlConnection:
-            self.postgresqlConnection.close()
-
+            # loggerr.info("Closing Postgres (RA) DB connection")
+            try:
+                self.postgresqlConnection.commit()
+            except Exception as e:
+                # loggerr.warning(f"Postgres commit failed before closing: {str(e)}")
+                self.postgresqlConnection.rollback()
+            finally:
+                self.postgresqlConnection.close()
+                self.postgresqlConnection = None
+            
     def fetchForecastData(self, start_timestamp: dt.datetime, end_timestamp: dt.datetime, entity_tag: str, revision_no: str):
         """
         Fetch data from the FORECAST_REVISION_STORE table based on timestamps, entity_tag, and revision_no.

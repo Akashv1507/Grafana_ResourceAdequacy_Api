@@ -4,3 +4,6 @@ __pycache__
 wbesApiResp.json
 wbesRevNoApi.json
 requestBodyParams.json
+utilityInfo.json
+dist
+build

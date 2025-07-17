@@ -26,10 +26,8 @@ def getMetrics():
     
 @stateDcCompDashApiController.route("/variable", methods=["POST"])
 def getVariables():
-
-    requestBodyData= request.get_json()
-    payload = requestBodyData.get('payload', "")
-    revisionType = payload.get('revisionType', "")
+    # no specific query variable related to State Dc Comparison Screen
+    return ""
    
     
 
@@ -45,41 +43,55 @@ def queryData():
     startTime = adjustToNearestQuarter(startTime).replace(second=0)
     endTime = adjustToNearestQuarter(endTime).replace(second=0)
     scopedVars = queryData["scopedVars"]
-    stateScadaId = scopedVars['States']['value'] 
     stateName = scopedVars['States']['text'] #Maharashtra
     genType = scopedVars['genType']['value'] #Thermal, Gas, Hydro
     revisionType = scopedVars['revisionType']['value']# Intraday,DayAhead
     queryStateName= getattr(appConfig, stateName)['raStateName']
-    plantIdList= []
-    queryDcTblName = ""
-    if revisionType == "Intraday":
-        queryDcTblName ="intraday_dc_data"
-    elif revisionType == "DayAhead":
-        queryDcTblName ="day_ahead_dc_data"
+    thermalGenScadaPoint= getattr(appConfig, stateName)['thermalGenScadaPoint']
+    thermalAndGasGenScadaPoint= getattr(appConfig, stateName)['thermal&GasGenScadaPoint']
+    hydelGenScadaPoint= getattr(appConfig, stateName)['hydelGenScadaPoint']
     
     stateDcDataService= StateDcDataService(appConfig.RaDbHost, appConfig.RaDbPort, appConfig.RaDbName, appConfig.RaDbUsername, appConfig.RaDbPwd)
     stateDcDataService.connect()
-    # getting mapping data and selecting IDs of unit for state and fuel type that obtained from frontend
-    mappingDataDict = stateDcDataService.fetchMappingTblData()
-    for singleUnitData in mappingDataDict:
-        if singleUnitData["state"] ==queryStateName and singleUnitData["fuel_type"]==genType:
-            plantIdList.append(singleUnitData["id"])
-
-    stateDcAndNormDcSumTotalBlockwise= stateDcDataService.fetchStateDcData(queryDcTblName, plantIdList, startTime, endTime)
-
-
-
+    stateDcAndNormDcSumTotalBlockwise= stateDcDataService.fetchStateDcAndNormDcData(startTime, endTime, queryStateName, revisionType, genType )
+    stateDcDataService.disconnect()
+    stageScadaGenerationData = []
+    #Getting Actual generation
+    if genType=='Thermal':
+        stateThermalGenData= fetchScadaPntHistData(pntId=thermalGenScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
+        stageScadaGenerationData = stateThermalGenData
+    elif genType == 'Gas':
+        # gas point will contain generation of both thermal and gas, hence subtracting thermal values
+        stateThermalGenData = fetchScadaPntHistData(pntId=thermalGenScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
+        stateThermalAndGasGenData = fetchScadaPntHistData(pntId=thermalAndGasGenScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
+        stageScadaGenerationData = [[(a[0] - b[0]), a[1]] for a, b in zip(stateThermalAndGasGenData, stateThermalGenData)]
+    elif genType == 'Hydro':
+        stateHydelGenData = fetchScadaPntHistData(pntId=hydelGenScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
+        stageScadaGenerationData = stateHydelGenData
     
-
-    response = []
-    
-    #Getting Actual Data
-    stateActDemData= fetchScadaPntHistData(pntId=stateScadaId, startTime=startTime, endTime=endTime, samplingSecs=900)
-    #setting traces for grafana, here called as targets
-    actualDemandTargetData = {
-    "target": 'Actual-Demand',
-    "datapoints": stateActDemData
+    dcTrace = {
+    "target": 'DC',
+    "datapoints": [[row["dc_val"], int(row['timestamp'].timestamp() * 1000)] 
+                        for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
-    #adding above 2 targets to final response
-    response.append(actualDemandTargetData)
+    outageCapcityTrace = {
+    "target": 'Outage-Capacity',
+    "datapoints": [[row["outage_capacity"], int(row['timestamp'].timestamp() * 1000)] 
+                        for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
+    }
+    normativeDcTrace = {
+    "target": 'Normative-DC',
+    "datapoints": [[row["normative_dc"], int(row['timestamp'].timestamp() * 1000)] 
+                        for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
+    }
+    actualGenTrace = {
+    "target": 'Actual-Generation',
+    "datapoints": stageScadaGenerationData
+    }
+    response = []
+    #adding above 3 targets to final response
+    response.append(outageCapcityTrace)
+    response.append(dcTrace)
+    response.append(normativeDcTrace)
+    response.append(actualGenTrace)
     return jsonify(response)

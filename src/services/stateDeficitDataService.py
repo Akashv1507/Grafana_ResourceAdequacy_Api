@@ -3,7 +3,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg import sql
 
-class StateDcDataService:
+class StateDeficitDataService:
     def __init__(self, host, port, dbName, user, password):
         self.host= host
         self.port= port
@@ -40,47 +40,20 @@ class StateDcDataService:
                 self.connection.close()
                 self.connection = None
 
-
-    def fetchMappingTblData(self):
-        """Fetch  data from the mapping_table."""
-        if not self.connection:
-            print("No active database connection.")
-            return []
-
-        query = "SELECT id, plant_name, unit_name, state, fuel_type, installed_capacity, aux_consumption, outage_unit_name FROM public.mapping_table"
-        cursor = self.connection.cursor()
-
-        try:
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            return rows
-        except Exception as e:
-            print(f"Error fetching mapping data: {str(e)}")
-            return []
-        finally:
-            cursor.close()
     
-    def fetchStateDcAndNormDcData(self, startTime:dt.datetime, endTime:dt.datetime, stateName:str, dcTypeColName:str, fuelType:str):
-        """Fetch state dc and normative dc data from state_dc_outage_summary tbl between starttime and endtime"""
+    def fetchDeficitRevisionNo(self, targteDate: dt.date, defType:str ):
+        """Fetch state Deficit revision no deficit_revision_metadata tbl for target date"""
         
         if not self.connection:
             print("No active database connection.")
             return []
         # Compose SQL with safe identifiers for table names
-        query = sql.SQL("""select
-                                sdos.timestamp , sdos.outage_capacity , sdos.normative_dc , sdos.{dc_type_colName} as dc_val
-                            from
-                                state_dc_outage_summary sdos
-                            where
-                                sdos.timestamp between %(start_time)s and %(end_time)s
-                                and sdos.fuel_type = %(fuel_type)s and sdos.state_name =%(state_name)s
-                                order  by sdos.timestamp ;
-        """).format(dc_type_colName=sql.Identifier(f"{dcTypeColName.lower()}_dc"))
+        query = sql.SQL("""select drm.def_rev_no from deficit_revision_metadata drm where drm.date =%(target_date)s and drm.def_type = %(def_type)s order  by drm.def_rev_no;""")
 
         cursor = self.connection.cursor()
 
         try:
-            cursor.execute(query, {"start_time": startTime,"end_time": endTime, "fuel_type": fuelType, "state_name": stateName })
+            cursor.execute(query, {"target_date": targteDate,"def_type": defType})
             rows = cursor.fetchall()
             return rows
         except Exception as e:
@@ -90,3 +63,26 @@ class StateDcDataService:
             if cursor:
                 cursor.close()
 
+    def fetchStateDeficitData(self, startTime:dt.datetime, endTime:dt.datetime, stateName:str, revisionNo:str ):
+        """Fetch state Deficit data from state_deficit_data tbl between starttime and endtime"""
+        
+        if not self.connection:
+            print("No active database connection.")
+            return []
+        # Compose SQL with safe identifiers for table names
+        query = sql.SQL("""select * from state_deficit_data sdd
+                            where sdd.timestamp between %(start_time)s and %(end_time)s and sdd.state_key = %(state_name)s 
+                            and  sdd.def_revision_no = %(revision_no)s""")
+
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.execute(query, {"start_time": startTime,"end_time": endTime, 'state_name': stateName, 'revision_no':revisionNo })
+            rows = cursor.fetchall()
+            return rows
+        except Exception as e:
+            print(f"Error fetching deficit data: {str(e)}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
