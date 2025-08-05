@@ -46,19 +46,19 @@ def getVariables():
         stateDeficitDataService.connect()
         deficitRevisionNos = stateDeficitDataService.fetchDeficitRevisionNo(targetDate, 'DA')
         stateDeficitDataService.disconnect()
-        allRevList= [ {"__text": f"{revision['def_rev_no']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
+        allRevList= [ {"__text": f"{revision['def_rev_no']} | {revision['time']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
         return jsonify(allRevList)
     elif revisionType== 'Intraday':
         stateDeficitDataService.connect()
         deficitRevisionNos = stateDeficitDataService.fetchDeficitRevisionNo(targetDate, 'INTRADAY')
         stateDeficitDataService.disconnect()
-        allRevList= [ {"__text": f"{revision['def_rev_no']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
+        allRevList= [ {"__text": f"{revision['def_rev_no']} | {revision['time']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
         return jsonify(allRevList)
     else:
         stateDeficitDataService.connect()
         deficitRevisionNos = stateDeficitDataService.fetchDeficitRevisionNo(targetDate, 'INTRADAY')
         stateDeficitDataService.disconnect()
-        allRevList= [ {"__text": f"{revision['def_rev_no']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
+        allRevList= [ {"__text": f"{revision['def_rev_no']} | {revision['time']}", "__value":revision['def_rev_no'] } for revision in deficitRevisionNos]
         return jsonify(allRevList)
 
 @stateDeficitCompDashApiController.route("/query", methods=["POST"])
@@ -71,6 +71,7 @@ def queryData():
         queryData["range"]["to"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
     startTime = adjustToNearestQuarter(startTime).replace(second=0)
     endTime = adjustToNearestQuarter(endTime).replace(second=0)
+    targetDate= endTime.date()
     scopedVars = queryData["scopedVars"]
     stateName = scopedVars['States']['text'] #Maharashtra
     revisionType = scopedVars['revisionType']['value']# Intraday,DayAhead
@@ -81,38 +82,43 @@ def queryData():
     stateDeficitDataService= StateDeficitDataService(appConfig.RaDbHost, appConfig.RaDbPort, appConfig.RaDbName, appConfig.RaDbUsername, appConfig.RaDbPwd)
     stateDeficitDataService.connect()
     stateDcAndNormDcSumTotalBlockwise= stateDeficitDataService.fetchStateDeficitData(startTime, endTime, raStateName, deficitRevNo )
+    allParamsRevNo = stateDeficitDataService.fetchAllParamsRevisionNo(targetDate, deficitRevNo)
     stateDeficitDataService.disconnect()
   
     #Getting deviation data from scada
     stateDeviationData = fetchScadaPntHistData(pntId=deviationScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
-   
+    defRevNo = (allParamsRevNo or {}).get("def_rev_no", "")
+    forecastRevNo = (allParamsRevNo or {}).get("forecast_rev_no", "")
+    schRevNo = (allParamsRevNo or {}).get("sch_rev_no", "")
+    dcRevNo = (allParamsRevNo or {}).get("dc_rev_no", "")
+    reForecastRevNo = (allParamsRevNo or {}).get("reforecast_rev_no", "")
     defTrace = {
-    "target": 'Deficit',
+    "target": f'Deficit-{defRevNo}',
     "datapoints": [[row["def_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
     forecastTrace = {
-    "target": 'Dem-Forecast',
+    "target": f'DemForecast-{forecastRevNo}',
     "datapoints": [[row["forecast_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
     wbesSdlTrace = {
-    "target": 'WBES-SDL',
+    "target": f'WBES-SDL-{schRevNo}',
     "datapoints": [[row["sdl_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
     dcTrace = {
-    "target": 'DC',
+    "target": f'DC-{dcRevNo}',
     "datapoints": [[row["dc_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
     windForecastTrace = {
-    "target": 'Wind-Fore',
+    "target": f'Wind-Fore-{reForecastRevNo}',
     "datapoints": [[row["wind_fore_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
     solarForecastTrace = {
-    "target": 'Solar-Fore',
+    "target": f'Solar-Fore-{reForecastRevNo}',
     "datapoints": [[row["solar_fore_val"], int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }

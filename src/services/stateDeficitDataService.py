@@ -48,7 +48,7 @@ class StateDeficitDataService:
             print("No active database connection.")
             return []
         # Compose SQL with safe identifiers for table names
-        query = sql.SQL("""select drm.def_rev_no from deficit_revision_metadata drm where drm.date =%(target_date)s and drm.def_type = %(def_type)s order  by drm.def_rev_no;""")
+        query = sql.SQL("""select drm.def_rev_no, drm.time from deficit_revision_metadata drm where drm.date =%(target_date)s and drm.def_type = %(def_type)s order  by drm.def_rev_no;""")
 
         cursor = self.connection.cursor()
 
@@ -83,6 +83,28 @@ class StateDeficitDataService:
         except Exception as e:
             print(f"Error fetching deficit data: {str(e)}")
             return []
+        finally:
+            if cursor:
+                cursor.close()
+
+    def fetchAllParamsRevisionNo(self, targteDate: dt.date, defRevNo:str ):
+        """Fetch all other parameters like(Demand Fore, Re forecast, SDl, etc ) revision no for particular deficit revision NO from deficit_revision_metadata tbl for target date"""
+        
+        if not self.connection:
+            print("No active database connection.")
+            return {}
+        # Compose SQL with safe identifiers for table names
+        query = sql.SQL("""select * from deficit_revision_metadata drm where drm.date =%(target_date)s and drm.def_rev_no = %(def_rev_no)s order by drm.def_rev_no;""")
+
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.execute(query, {"target_date": targteDate, "def_rev_no": defRevNo})
+            row = cursor.fetchone()
+            return row
+        except Exception as e:
+            print(f"Error fetching outage and dc summary data data: {str(e)}")
+            return {}
         finally:
             if cursor:
                 cursor.close()

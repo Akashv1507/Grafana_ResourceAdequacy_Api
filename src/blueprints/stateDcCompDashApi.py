@@ -28,13 +28,10 @@ def getMetrics():
 def getVariables():
     # no specific query variable related to State Dc Comparison Screen
     return ""
-   
-    
 
 @stateDcCompDashApiController.route("/query", methods=["POST"])
 def queryData():
     appConfig =getAppConfig()
-    
     queryData = request.get_json()
     startTime = dt.datetime.strptime(
         queryData["range"]["from"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
@@ -50,7 +47,7 @@ def queryData():
     thermalGenScadaPoint= getattr(appConfig, stateName)['thermalGenScadaPoint']
     thermalAndGasGenScadaPoint= getattr(appConfig, stateName)['thermal&GasGenScadaPoint']
     hydelGenScadaPoint= getattr(appConfig, stateName)['hydelGenScadaPoint']
-    
+    dcMultiplier= getattr(appConfig, stateName)['dcMultiplier']
     stateDcDataService= StateDcDataService(appConfig.RaDbHost, appConfig.RaDbPort, appConfig.RaDbName, appConfig.RaDbUsername, appConfig.RaDbPwd)
     stateDcDataService.connect()
     stateDcAndNormDcSumTotalBlockwise= stateDcDataService.fetchStateDcAndNormDcData(startTime, endTime, queryStateName, revisionType, genType )
@@ -69,11 +66,16 @@ def queryData():
         stateHydelGenData = fetchScadaPntHistData(pntId=hydelGenScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
         stageScadaGenerationData = stateHydelGenData
     
-    dcTrace = {
+    dcMultiplierTrace = {
     "target": 'DC',
-    "datapoints": [[row["dc_val"], int(row['timestamp'].timestamp() * 1000)] 
+    "datapoints": [[dcMultiplier*(row["dc_val"]), int(row['timestamp'].timestamp() * 1000)] 
                         for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
     }
+    # dcTrace = {
+    # "target": 'DC',
+    # "datapoints": [[(row["dc_val"]), int(row['timestamp'].timestamp() * 1000)] 
+    #                     for i, row in enumerate(stateDcAndNormDcSumTotalBlockwise)]
+    # }
     outageCapcityTrace = {
     "target": 'Outage-Capacity',
     "datapoints": [[row["outage_capacity"], int(row['timestamp'].timestamp() * 1000)] 
@@ -91,7 +93,8 @@ def queryData():
     response = []
     #adding above 3 targets to final response
     response.append(outageCapcityTrace)
-    response.append(dcTrace)
+    # response.append(dcTrace)
+    response.append(dcMultiplierTrace)
     response.append(normativeDcTrace)
     response.append(actualGenTrace)
     return jsonify(response)
