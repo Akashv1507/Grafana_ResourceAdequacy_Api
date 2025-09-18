@@ -19,11 +19,11 @@ app.config['DEBUG_TB_TEMPLATE_EDITOR_ENABLED'] = True  # Enable template editor
 
 
 
-# app.register_blueprint(demandForecastDashApiController)
-# app.register_blueprint(schduleCompDashApiController)
+app.register_blueprint(demandForecastDashApiController)
+app.register_blueprint(schduleCompDashApiController)
 app.register_blueprint(stateDcCompDashApiController)
-# app.register_blueprint(stateDeficitCompDashApiController)
-# app.register_blueprint(reForecastCompDashApiController)
+app.register_blueprint(stateDeficitCompDashApiController)
+app.register_blueprint(reForecastCompDashApiController)
 
 
 app.run(host=appConfig.flaskHost, port=appConfig.flaskPort, debug=True, use_reloader=True)
