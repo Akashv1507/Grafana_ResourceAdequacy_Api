@@ -25,6 +25,7 @@ class AppConfig:
     RaDbHost:str= field(default="")
     RaDbPort:int = field(default=8080)
     remcApiBaseUrl:str = field(default="")
+    freqScadaId: str = field(default="")
     
 
 def loadAppConfig(fName="config/config.json") -> AppConfig:

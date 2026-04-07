@@ -7,3 +7,5 @@ requestBodyParams.json
 utilityInfo.json
 dist
 build
+*.spec
+.exe

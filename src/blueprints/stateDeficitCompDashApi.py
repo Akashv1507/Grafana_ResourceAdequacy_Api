@@ -78,7 +78,7 @@ def queryData():
     deficitRevNo = scopedVars['deficitRevisionNo']['value']# DA1,DA2, INT1, INT2...
     raStateName= getattr(appConfig, stateName)['raStateName']
     deviationScadaPoint= getattr(appConfig, stateName)['deviationScadaPoint']
-       
+    freScadaPoint = appConfig.freqScadaId  
     stateDeficitDataService= StateDeficitDataService(appConfig.RaDbHost, appConfig.RaDbPort, appConfig.RaDbName, appConfig.RaDbUsername, appConfig.RaDbPwd)
     stateDeficitDataService.connect()
     stateDcAndNormDcSumTotalBlockwise= stateDeficitDataService.fetchStateDeficitData(startTime, endTime, raStateName, deficitRevNo )
@@ -87,6 +87,7 @@ def queryData():
   
     #Getting deviation data from scada
     stateDeviationData = fetchScadaPntHistData(pntId=deviationScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
+    freqData = fetchScadaPntHistData(pntId=freScadaPoint, startTime=startTime, endTime=endTime, samplingSecs=900)
     defRevNo = (allParamsRevNo or {}).get("def_rev_no", "")
     forecastRevNo = (allParamsRevNo or {}).get("forecast_rev_no", "")
     schRevNo = (allParamsRevNo or {}).get("sch_rev_no", "")
@@ -131,6 +132,10 @@ def queryData():
     "target": 'Deviation',
     "datapoints": stateDeviationData
     }
+    freqTrace = {
+    "target": 'Frequency',
+    "datapoints": freqData
+    }
     response = []
     #adding above 3 targets to final response
     response.append(defTrace)
@@ -141,4 +146,5 @@ def queryData():
     response.append(solarForecastTrace)
     response.append(othersTrace)
     response.append(deviationTrace)
+    response.append(freqTrace)
     return jsonify(response)
